@@ -30,7 +30,7 @@ The visualization displays tweets as points in 2D space where:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/YOUR_USERNAME/twitter-embedding-visualization.git
+git clone https://github.com/A-Fujihara/twitter-embedding-visualization.git
 cd twitter-embedding-visualization
 ```
 
