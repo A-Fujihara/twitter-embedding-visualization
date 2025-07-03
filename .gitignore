@@ -111,3 +111,11 @@ static_tweet_plot.html
 # Conda cache files
 miniconda3/
 **/pkgs/cache/
+
+# System cache folders
+.cache/
+.dotnet/
+.local/
+.npm/
+.streamlit/
+
