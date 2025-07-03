@@ -107,6 +107,7 @@ static_plot.py
 pyvis_network.py
 tweet_network.html
 static_tweet_plot.html
+umap_tweets.py
 
 # Conda cache files
 miniconda3/
