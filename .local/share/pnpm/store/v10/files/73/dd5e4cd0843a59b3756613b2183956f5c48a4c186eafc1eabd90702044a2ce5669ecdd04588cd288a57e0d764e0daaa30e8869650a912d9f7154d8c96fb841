@@ -1,0 +1,1 @@
+cmd_Release/obj.target/gpt4all.node := g++ -o Release/obj.target/gpt4all.node -shared -pthread -rdynamic  -Wl,-soname=gpt4all.node -Wl,--start-group Release/obj.target/gpt4all/gpt4all-backend/llmodel_c.o Release/obj.target/gpt4all/gpt4all-backend/llmodel.o Release/obj.target/gpt4all/prompt.o Release/obj.target/gpt4all/index.o -Wl,--end-group 

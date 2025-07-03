@@ -1,0 +1,1 @@
+cmd_Release/gpt4all.node := ln -f "Release/obj.target/gpt4all.node" "Release/gpt4all.node" 2>/dev/null || (rm -rf "Release/gpt4all.node" && cp -af "Release/obj.target/gpt4all.node" "Release/gpt4all.node")

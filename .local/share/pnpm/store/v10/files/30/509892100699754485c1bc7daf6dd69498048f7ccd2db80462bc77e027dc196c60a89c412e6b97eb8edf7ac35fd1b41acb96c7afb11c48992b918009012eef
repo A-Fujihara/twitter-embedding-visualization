@@ -1,0 +1,8 @@
+cmd_Release/obj.target/gpt4all/gpt4all-backend/llmodel.o := g++ -o Release/obj.target/gpt4all/gpt4all-backend/llmodel.o ../gpt4all-backend/llmodel.cpp '-DNODE_GYP_MODULE_NAME=gpt4all' '-DUSING_UV_SHARED=1' '-DUSING_V8_SHARED=1' '-DV8_DEPRECATION_WARNINGS=1' '-D_GLIBCXX_USE_CXX11_ABI=1' '-D_LARGEFILE_SOURCE' '-D_FILE_OFFSET_BITS=64' '-D__STDC_FORMAT_MACROS' '-DOPENSSL_NO_PINSHARED' '-DOPENSSL_THREADS' '-DLIB_FILE_EXT=".so"' '-DNAPI_CPP_EXCEPTIONS' '-DBUILDING_NODE_EXTENSION' -I/home/fuji/.cache/node-gyp/20.19.2/include/node -I/home/fuji/.cache/node-gyp/20.19.2/src -I/home/fuji/.cache/node-gyp/20.19.2/deps/openssl/config -I/home/fuji/.cache/node-gyp/20.19.2/deps/openssl/openssl/include -I/home/fuji/.cache/node-gyp/20.19.2/deps/uv/include -I/home/fuji/.cache/node-gyp/20.19.2/deps/zlib -I/home/fuji/.cache/node-gyp/20.19.2/deps/v8/include -I/home/fuji/memetics/semantic-embedding-template/node_modules/.pnpm/node-addon-api@6.1.0/node_modules/node-addon-api -I../gpt4all-backend  -fPIC -pthread -Wall -Wextra -Wno-unused-parameter -O3 -fno-omit-frame-pointer -fno-exceptions -std=gnu++17 -std=c++2a -fexceptions -MMD -MF ./Release/.deps/Release/obj.target/gpt4all/gpt4all-backend/llmodel.o.d.raw   -c
+Release/obj.target/gpt4all/gpt4all-backend/llmodel.o: \
+ ../gpt4all-backend/llmodel.cpp ../gpt4all-backend/llmodel.h \
+ ../gpt4all-backend/dlhandle.h ../gpt4all-backend/sysinfo.h
+../gpt4all-backend/llmodel.cpp:
+../gpt4all-backend/llmodel.h:
+../gpt4all-backend/dlhandle.h:
+../gpt4all-backend/sysinfo.h:

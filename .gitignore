@@ -1,0 +1,113 @@
+# System/Shell files
+.bash_history
+.bash_logout
+.bashrc
+.profile
+.gitconfig
+.motd_shown
+.skip-cloud-init-warning
+.sudo_as_admin_successful
+.wget-hsts
+
+# VS Code
+.vscode-server/
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Conda
+.conda/
+
+# Data files
+# *.csv
+# *.json
+# *.pkl
+# *.parquet
+
+# Backup files
+*_backup.*
+*.bak
+*.tmp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# HTML output files (if you regenerate them)
+*.html
+
+# PNG/image outputs (if you regenerate them)
+# *.png
+# *.jpg
+# *.jpeg
+# *.gif
+
+# Installer files
+Miniconda3-latest-*.sh
+*.deb
+*.rpm
+*.msi
+*.exe
+
+# Temporary files
+temp/
+tmp/
+*.swp
+*~
+
+# Files to delete
+static_plot.py
+pyvis_network.py
+tweet_network.html
+static_tweet_plot.html
+
+# Conda cache files
+miniconda3/
+**/pkgs/cache/
