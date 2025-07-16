@@ -66,7 +66,6 @@ def collect_all_tweets(base_url, headers, user_accounts):
     for username, account_id in user_accounts.items():
         print(f"  Getting tweets for {username}...")
 
-        # Start with first batch
         limit = 1000  # Get 1000 tweets at a time
         offset = 0
         user_tweet_count = 0
@@ -79,7 +78,7 @@ def collect_all_tweets(base_url, headers, user_accounts):
 
             if response.status_code == 200:
                 tweets = response.json()
-                if not tweets:  # No more tweets
+                if not tweets:
                     break
 
                 # Add username and collection timestamp to each tweet
