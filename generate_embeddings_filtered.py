@@ -20,9 +20,13 @@ def generate_embeddings():
     # Input and output files
     # input_file = "tweets_data_20250602_104228.csv" <-- Original file DO NOT DELETE
     input_file = "tweets_data_20250629_131806.csv"
+    # input_file = 'tweets_data_20250714_181458.csv'
+
+    # input_file = "tweets_data_20250714_185858.csv" # <-- DO NOT DELETE
     output_file = f"tweets_with_embeddings_filtered_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
 
     # Users to include (smallest dataset for proof of concept)
+    # target_users = ['breakfast_survey'] # <-- Original file DO NOT DELETE
     target_users = ['mcd0w']
 
     print("=== Generating Embeddings ===")

@@ -3,6 +3,8 @@ from collections import Counter
 
 
 def analyze_users():
+    '''Analyze the number of tweets per user from a CSV file.
+    '''
     input_file = "tweets_data_20250602_104228.csv"
 
     users = []
