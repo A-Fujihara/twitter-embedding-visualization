@@ -120,3 +120,12 @@ miniconda3/
 .npm/
 .streamlit/
 
+# CSV files
+tweets_backup.csv
+tweets_data_20250629_131806.csv
+tweets_data_20250714_185858.csv
+tweets_data_filtered_20250730_103510.csv
+tweets_with_embeddings_20250730_131027.csv
+tweets_with_embeddings_filtered_20250714_190010.csv
+tweets_with_embeddings_filtered_20250715_160511.csv
+tweets_with_embeddings_filtered_20250715_170725.csv
