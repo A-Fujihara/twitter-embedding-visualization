@@ -1,5 +1,3 @@
-
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -7,12 +5,11 @@ import umap
 import plotly.graph_objects as go
 import plotly.express as px
 import ast
-import random
 import requests
-import json
-import pickle
 from datetime import datetime
-
+import glob
+import os
+import sys
 
 #####################################################################################################
 # Streamlit app for dynamic tweet embedding visualization
@@ -26,6 +23,62 @@ st.title("Dynamic Tweet Embedding Visualization")
 if st.button("Refresh Data"):
     st.cache_data.clear()
 
+#####################################################################################################
+# Auto-detect the most recent embeddings file or use specified file
+#####################################################################################################
+def get_latest_embeddings_file():
+    """Find the most recent tweets_with_embeddings_*.csv file"""
+    pattern = "tweets_with_embeddings_*.csv"
+    files = glob.glob(pattern)
+    
+    if not files:
+        return None
+    
+    # Sort by modification time and get the most recent
+    latest_file = max(files, key=os.path.getmtime)
+    return latest_file
+
+@st.cache_data
+def get_embeddings_file():
+    """Get embeddings file - either specified via command line or auto-detect most recent"""
+
+    streamlit_args = [arg for arg in sys.argv if not arg.startswith('--')]
+    
+    if len(streamlit_args) > 1:
+        specified_file = streamlit_args[1]
+        if os.path.exists(specified_file):
+            st.info(f"📁 Using specified file: {specified_file}")
+            return specified_file
+        else:
+            st.error(f"❌ Specified file not found: {specified_file}")
+            st.info("Falling back to auto-detection...")
+    
+    # Fall back to auto-detection
+    latest_file = get_latest_embeddings_file()
+    if not latest_file:
+        st.error("❌ No embeddings files found! Please run the embedding generation first.")
+        st.info("Expected filename pattern: tweets_with_embeddings_YYYYMMDD_HHMMSS.csv")
+        return None
+    
+    st.info(f"🔍 Auto-detected file: {latest_file}")
+    return latest_file
+
+#####################################################################################################
+# UMAP Configuration Panel
+#####################################################################################################
+st.sidebar.header("🎛️ UMAP Configuration")
+
+with st.sidebar.expander("Clustering Parameters", expanded=True):
+    n_neighbors = st.slider("n_neighbors", min_value=5, max_value=200, value=15, 
+                           help="Controls local vs global structure. Lower = more local clusters")
+    min_dist = st.slider("min_dist", min_value=0.0, max_value=1.0, value=0.1, step=0.05,
+                        help="Minimum distance between points. Lower = tighter clusters")
+    spread = st.slider("spread", min_value=0.5, max_value=3.0, value=1.0, step=0.1,
+                      help="Scale of embedded points. Higher = more spread out")
+    
+    # Sample size for faster processing
+    max_tweets = st.slider("Max tweets to visualize", min_value=1000, max_value=50000, value=21000, step=1000,
+                          help="Reduce for faster processing")
 
 #####################################################################################################
 # Load and process tweet data from CSV, filter out invalid embeddings, and return valid embeddings and their indices.
@@ -33,20 +86,40 @@ if st.button("Refresh Data"):
 # and returns a NumPy array of valid embeddings along with their corresponding row indices in the original DataFrame.
 #####################################################################################################
 @st.cache_data 
-def load_base_tweets_and_fit_umap():
+def load_base_tweets_and_fit_umap(n_neighbors, min_dist, spread, max_tweets):
     """
     Load base tweets (excluding test tweets), fit UMAP model, and return the model and base coordinates.
     This function is cached and should never be cleared to maintain consistent positioning.
     """
-    #df = pd.read_csv('tweets_with_embeddings_filtered_20250715_170725.csv')
-    df = pd.read_csv('tweets_with_embeddings_filtered_20250714_190010.csv')
+    embeddings_file = get_embeddings_file()
+    if not embeddings_file:
+        return None, None, None
+        
+    try:
+        df = pd.read_csv(embeddings_file, quotechar='"', on_bad_lines='skip', dtype=str)
+    except:
+        try:
+            df = pd.read_csv(embeddings_file, quotechar='"', error_bad_lines=False, warn_bad_lines=False, dtype=str)
+        except:
+            df = pd.read_csv(embeddings_file, sep=',', quotechar='"', on_bad_lines='skip', engine='python', dtype=str)
+    
+    # Split into base tweets and test tweets BEFORE sampling
+    test_tweets_mask = df.iloc[:, 0].str.startswith('999', na=False)
+    base_tweets_df = df[~test_tweets_mask]
+    test_tweets_df = df[test_tweets_mask]
+    
+    if len(base_tweets_df) > max_tweets:
+        base_tweets_df = base_tweets_df.sample(n=max_tweets, random_state=42)
+        st.info(f"📊 Sampled {max_tweets:,} base tweets from {len(df[~test_tweets_mask]):,} total")
+    
+    # Combine back together - test tweets are ALWAYS included
+    df = pd.concat([base_tweets_df, test_tweets_df], ignore_index=True)
     
     base_embeddings = []
     base_indices = []
     
     for i, embedding_str in enumerate(df['embedding']):
-        # Skip test tweets (IDs starting with '999')
-        tweet_id = str(df.iloc[i].iloc[0])
+        tweet_id = str(df.iloc[i].iloc[0]) if pd.notna(df.iloc[i].iloc[0]) else ""
         if tweet_id.startswith('999'):
             continue
             
@@ -60,13 +133,18 @@ def load_base_tweets_and_fit_umap():
     
     base_embeddings = np.array(base_embeddings)
     
-    # Fit UMAP on base data only
-    reducer = umap.UMAP(n_components=2, random_state=42, spread=1.25, min_dist=0.5)
+    reducer = umap.UMAP(
+        n_components=2, 
+        random_state=42, 
+        spread=spread, 
+        min_dist=min_dist,
+        n_neighbors=n_neighbors,
+        metric='cosine'
+    )
     base_coordinates = reducer.fit_transform(base_embeddings)
     
     return reducer, base_coordinates, base_indices
 
-# @st.cache_data 
 ############################################################################################################
 # Load current CSV data including any test tweets.
 # This function gets cleared when test tweets are added/removed.
@@ -76,8 +154,18 @@ def load_current_data():
     Load current CSV data including any test tweets.
     This function gets cleared when test tweets are added/removed.
     """
-    # df = pd.read_csv('tweets_with_embeddings_filtered_20250715_170725.csv')
-    df = pd.read_csv('tweets_with_embeddings_filtered_20250714_190010.csv')
+    embeddings_file = get_embeddings_file()
+    if not embeddings_file:
+        return None
+        
+    try:
+        df = pd.read_csv(embeddings_file, quotechar='"', on_bad_lines='skip', dtype=str)
+    except:
+        try:
+            df = pd.read_csv(embeddings_file, quotechar='"', error_bad_lines=False, warn_bad_lines=False, dtype=str)
+        except:
+            df = pd.read_csv(embeddings_file, sep=',', quotechar='"', on_bad_lines='skip', engine='python', dtype=str)
+    
     return df
 
 ############################################################################################################
@@ -108,6 +196,7 @@ def get_embedding_from_lmstudio(text):
     except Exception as e:
         st.error(f"Cannot connect to LM Studio: {e}")
         return None
+
 ############################################################################################################
 # Add a test tweet with real LM Studio embedding to the CSV file
 # This function generates a unique ID for the test tweet, retrieves its embedding,
@@ -125,22 +214,38 @@ def add_test_tweet_to_csv(tweet_text, csv_file_path):
     
     test_embedding_str = str(test_embedding)
     
-    # Generate unique ID starting with 999
     unique_id = int(f"999{int(datetime.now().timestamp() * 1000) % 100000000}")
     
-    try:
-        df_sample = pd.read_csv(csv_file_path, nrows=1)
-        columns = df_sample.columns.tolist()
-        
-        if len(columns) == 3 and 'username' in columns and 'full_text' in columns and 'embedding' in columns:
-            csv_row = f'{unique_id},"{tweet_text}","{test_embedding_str}"\n'
-        else:
-            current_date = datetime.now().strftime('%Y-%m-%d')
-            csv_row = f'{unique_id},1,{current_date},{current_date},0,,"{tweet_text}",,,,,0,{current_date},testuser,"{test_embedding_str}"\n'
-            
-    except Exception as e:
-        csv_row = f'testuser,"{tweet_text}","{test_embedding_str}"\n'
+    # Read the header to get exact column structure
+    with open(csv_file_path, 'r', encoding='utf-8') as f:
+        header_line = f.readline().strip()
+        columns = header_line.split(',')
     
+    st.write(f"🔍 CSV has {len(columns)} columns: {columns[:3]}...")
+    
+    # Create row with exact same number of columns
+    current_date = datetime.now().strftime('%Y-%m-%d')
+    
+    # Build row data matching exact structure
+    row_data = [str(unique_id)]
+    
+    # Fill remaining columns based on expected structure
+    for i in range(1, len(columns)):
+        col_name = columns[i].strip('"').lower()
+        if 'full_text' in col_name or 'text' in col_name:
+            row_data.append(f'"{tweet_text.replace(chr(34), chr(34)+chr(34))}"')
+        elif 'embedding' in col_name:
+            row_data.append(f'"{test_embedding_str}"')
+        elif 'username' in col_name:
+            row_data.append('testuser')
+        elif 'date' in col_name:
+            row_data.append(current_date)
+        else:
+            row_data.append('')  # Empty for other columns
+    
+    csv_row = ','.join(row_data) + '\n'
+    
+    # Append to file
     with open(csv_file_path, 'a', encoding='utf-8') as f:
         f.write(csv_row)
     
@@ -153,9 +258,15 @@ def add_test_tweet_to_csv(tweet_text, csv_file_path):
 ############################################################################################################
 def remove_test_tweets_from_csv(csv_file_path):
     """Remove all test tweets from the CSV file using ID range"""
-    df = pd.read_csv(csv_file_path)
+    try:
+        df = pd.read_csv(csv_file_path, quotechar='"', on_bad_lines='skip', dtype=str)
+    except:
+        try:
+            df = pd.read_csv(csv_file_path, quotechar='"', error_bad_lines=False, warn_bad_lines=False, dtype=str)
+        except:
+            df = pd.read_csv(csv_file_path, sep=',', quotechar='"', on_bad_lines='skip', engine='python', dtype=str)
     
-    df.iloc[:, 0] = df.iloc[:, 0].astype(str)
+    df.iloc[:, 0] = df.iloc[:, 0].fillna("")
     
     # Filter out rows where ID starts with '999'
     original_df = df[~df.iloc[:, 0].str.startswith('999')]
@@ -164,6 +275,10 @@ def remove_test_tweets_from_csv(csv_file_path):
     original_df.to_csv(csv_file_path, index=False)
     
     return len(df) - len(original_df)
+
+embeddings_file = get_embeddings_file()
+if not embeddings_file:
+    st.stop()
 
 # Initialize session state
 if 'test_tweets_coordinates' not in st.session_state:
@@ -184,14 +299,13 @@ with st.sidebar:
         if st.button("Add Test Tweet", type="primary"):
             if test_tweet_input.strip():
                 try:
-                    # result = add_test_tweet_to_csv(test_tweet_input.strip(), 'tweets_with_embeddings_filtered_20250715_170725.csv')
-                    test_id = add_test_tweet_to_csv(test_tweet_input.strip(), 'tweets_with_embeddings_filtered_20250714_190010.csv')
+                    test_id = add_test_tweet_to_csv(test_tweet_input.strip(), embeddings_file)
                     
                     if test_id:
                         test_id, test_embedding = test_id
                         
                         # Get the fitted UMAP model
-                        reducer, _, _ = load_base_tweets_and_fit_umap()
+                        reducer, _, _ = load_base_tweets_and_fit_umap(n_neighbors, min_dist, spread, max_tweets)
                         
                         # Transform this single test tweet
                         test_coordinates = reducer.transform([test_embedding])
@@ -199,11 +313,8 @@ with st.sidebar:
                         # Store coordinates in session state
                         st.session_state.test_tweets_coordinates[str(test_id)] = {
                             'text': test_tweet_input.strip(),
-                            'coordinates': test_coordinates[0]  # Extract the single coordinate pair
+                            'coordinates': test_coordinates[0]
                         }
-                        
-                        # Clear data cache to reload CSV
-                        # load_current_data.clear()
                         
                         st.success(f"Test tweet added successfully!")
                         st.rerun()
@@ -216,13 +327,11 @@ with st.sidebar:
     with col2:
         if st.button("Remove All Test Tweets", type="secondary"):
             try:
-                # removed_count = remove_test_tweets_from_csv('tweets_with_embeddings_filtered_20250715_170725.csv')
-                removed_count = remove_test_tweets_from_csv('tweets_with_embeddings_filtered_20250714_190010.csv')
+                removed_count = remove_test_tweets_from_csv(embeddings_file)
                 
                 # Clear session state coordinates
                 st.session_state.test_tweets_coordinates = {}
-                
-                # Clear data cache to reload CSV                               
+                               
                 if removed_count > 0:
                     st.success(f"Removed {removed_count} test tweets!")
                 else:
@@ -241,14 +350,13 @@ with st.sidebar:
             st.write(f"{i}. {tweet_text[:50]}{'...' if len(tweet_text) > 50 else ''}")
 
 # Load base model and coordinates (cached)
-reducer, base_coordinates, base_indices = load_base_tweets_and_fit_umap()
+reducer, base_coordinates, base_indices = load_base_tweets_and_fit_umap(n_neighbors, min_dist, spread, max_tweets)
 
 # Load current data (includes any test tweets in CSV)
 df = load_current_data()
 
 st.write(f"Loaded {len(base_coordinates)} base tweets")
 
-# Prepare data for plotting
 all_coordinates = []
 all_texts = []
 all_colors = []
@@ -261,9 +369,18 @@ for i, coord in enumerate(base_coordinates):
 
 # Add test tweets from session state coordinates
 test_tweet_count = 0
+
 for tweet_id, tweet_data in st.session_state.test_tweets_coordinates.items():
-    # Verify this test tweet still exists in the CSV
-    if any(str(df.iloc[i].iloc[0]) == tweet_id for i in range(len(df))):
+    
+    # Check if this test tweet exists in the CSV
+    tweet_found = False
+    for i in range(len(df)):
+        csv_id = str(df.iloc[i].iloc[0]) if pd.notna(df.iloc[i].iloc[0]) else ""
+        if csv_id == tweet_id:
+            tweet_found = True
+            break
+    
+    if tweet_found:
         all_coordinates.append(tweet_data['coordinates'])
         all_texts.append(tweet_data['text'])
         all_colors.append('red')  # Red for test tweets
@@ -301,5 +418,3 @@ if all_coordinates:
     st.markdown("**Legend:** 🔴 Red dots = Test tweets | 🔵 Blue dots = Original tweets")
 else:
     st.error("No valid coordinates to display")
-
-

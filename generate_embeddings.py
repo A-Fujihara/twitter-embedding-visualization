@@ -3,30 +3,45 @@ import json
 import requests
 from datetime import datetime
 import time
+import sys
+import os
+
+## Run this file to generate embeddings for ALL tweets
+## Using command:
+## python generate_embeddings_production.py <input_csv_file>
 
 
 def generate_embeddings():
     """
     Reads tweets from CSV and generates embeddings using LMStudio API
+    PRODUCTION VERSION - processes ALL users
     """
 
-    # LMStudio API configuration
-    lm_studio_url = "http://localhost:1234/v1/embeddings"
+    lm_studio_url = "http://10.0.0.7:1234/v1/embeddings"
 
-    # Input and output files
-    input_file = "tweets_data_20250602_104228.csv"
+    # Get input file from command line argument
+    if len(sys.argv) != 2:
+        print("Usage: python generate_embeddings_production.py <input_csv_file>")
+        print("Example: python generate_embeddings_production.py tweets_data_filtered_20250729_143022.csv")
+        return
+    
+    input_file = sys.argv[1]
+    
+    # Verify input file exists
+    if not os.path.exists(input_file):
+        print(f"❌ Input file not found: {input_file}")
+        return
+
     output_file = f"tweets_with_embeddings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
 
-    print("=== Generating Embeddings (OPTIMIZED) ===")
+    print("=== Generating Embeddings (Production) ===")
     print(f"Input: {input_file}")
     print(f"Output: {output_file}")
 
-    # Test connection
     if not test_lmstudio_connection(lm_studio_url):
         return
 
-    # Process tweets
-    process_tweets_optimized(input_file, output_file, lm_studio_url)
+    process_all_tweets(input_file, output_file, lm_studio_url)
 
 
 def test_lmstudio_connection(url):
@@ -53,7 +68,7 @@ def test_lmstudio_connection(url):
 
 
 def get_embedding_fast(text, url):
-    """Get embedding with faster timeout"""
+    """Get embedding for a single text using LMStudio API"""
     try:
         response = requests.post(url,
                                  json={
@@ -73,18 +88,14 @@ def get_embedding_fast(text, url):
         return None
 
 
-def process_tweets_optimized(input_file, output_file, lm_studio_url):
-    """Process tweets with better progress tracking"""
+def process_all_tweets(input_file, output_file, lm_studio_url):
+    """Process ALL tweets without filtering"""
 
     processed_count = 0
     error_count = 0
     start_time = time.time()
 
-    # First, count total tweets
-    with open(input_file, 'r', encoding='utf-8') as f:
-        total_tweets = sum(1 for line in f) - 1  # Subtract header
-
-    print(f"📊 Total tweets to process: {total_tweets}")
+    print("📊 Processing all tweets in file...")
 
     with open(input_file, 'r', encoding='utf-8') as infile:
         reader = csv.DictReader(infile)
@@ -108,24 +119,28 @@ def process_tweets_optimized(input_file, output_file, lm_studio_url):
                         error_count += 1
                 else:
                     row['embedding'] = ''
+                    error_count += 1
 
-                # Progress update every 50 tweets
-                if (processed_count + error_count) % 50 == 0:
+                # Progress update every 100 tweets
+                total_processed = processed_count + error_count
+                if total_processed % 100 == 0:
                     elapsed = time.time() - start_time
-                    rate = (processed_count + error_count) / elapsed * 60  # per minute
-                    remaining = (total_tweets - processed_count - error_count) / rate if rate > 0 else 0
+                    rate = total_processed / elapsed * 60 if elapsed > 0 else 0
 
-                    print(f"  📈 {processed_count + error_count}/{total_tweets} tweets | "
+                    print(f"  📈 {total_processed} tweets processed | "
                           f"Rate: {rate:.1f}/min | "
-                          f"ETA: {remaining:.1f} minutes | "
+                          f"Successful: {processed_count} | "
                           f"Errors: {error_count}")
 
                 writer.writerow(row)
-
+    
     elapsed = time.time() - start_time
-    print(f"\n✅ Complete! Processed {processed_count} tweets in {elapsed / 60:.1f} minutes")
-    print(f"   Rate: {processed_count / (elapsed / 60):.1f} tweets/minute")
+    total_processed = processed_count + error_count
+    
+    print(f"\n✅ Complete! Processed {total_processed} tweets in {elapsed / 60:.1f} minutes")
+    print(f"   Successful embeddings: {processed_count}")
     print(f"   Errors: {error_count}")
+    print(f"   Average rate: {processed_count / (elapsed / 60):.1f} tweets/minute")
     print(f"   Output: {output_file}")
 
 
