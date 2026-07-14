@@ -10,6 +10,7 @@ Author: Generated for API testing
 
 import requests
 import json
+import os
 
 
 def test_supabase_connection():
@@ -27,7 +28,7 @@ def test_supabase_connection():
 
     # Supabase API setup
     base_url = "https://fabxmporizzqflnftavs.supabase.co/rest/v1"
-    api_key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZhYnhtcG9yaXp6cWZsbmZ0YXZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjIyNDQ5MTIsImV4cCI6MjAzNzgyMDkxMn0.UIEJiUNkLsW28tBHmG-RQDW-I5JNlJLt62CSk9D_qG8"
+    api_key = os.getenv("SUPABASE_ANON_KEY")
 
     headers = {
         "apikey": api_key,
